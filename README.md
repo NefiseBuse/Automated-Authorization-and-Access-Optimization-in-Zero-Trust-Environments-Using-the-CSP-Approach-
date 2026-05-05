@@ -41,5 +41,3 @@ but also enforces the Least Privilege principle algorithmically.
 - Least Privilege value ordering eliminates over-privileged assignments entirely
 - All 13 security constraints (including SoD rules K7–K9) are satisfied simultaneously
 - The approach provides fully traceable, auditable access decisions
-
-## Files
