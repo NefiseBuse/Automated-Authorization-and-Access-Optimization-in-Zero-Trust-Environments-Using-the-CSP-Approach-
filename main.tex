@@ -1,0 +1,332 @@
+\documentclass[conference]{IEEEtran}
+
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{cite}
+\usepackage{algorithm}
+
+
+% Code Listing Style
+\lstset{
+	language=Python,
+	basicstyle=\ttfamily\footnotesize,
+	keywordstyle=\color{blue}\bfseries,
+	commentstyle=\color{gray}\itshape,
+	stringstyle=\color{red},
+	numbers=left,
+	numberstyle=\tiny\color{gray},
+	numbersep=5pt,
+	frame=single,
+	breaklines=true,
+	captionpos=b,
+	tabsize=4
+}
+
+\begin{document}
+	
+	\title{Automated Authorization and Access Optimization in Zero Trust Environments Using the Constraint Satisfaction Problem Approach\\
+		{\footnotesize CPE4221305 --- Introduction to Artificial Intelligence, Spring 2026\\
+			Ankara Medipol University}
+	}
+	
+	\author{\IEEEauthorblockN{Nefise Buse Uzun}
+		\IEEEauthorblockA{\textit{School of Engineering and Natural Sciences}\\
+			\textit{Ankara Medipol University}\\
+			Ankara, Turkey \\
+			Student ID: 64220041 \\
+			nefise.uzun@std.ankaramedipol.edu.tr}
+	}
+	
+	\maketitle
+	
+	\begin{abstract}
+		The enterprise access control problem is formulated as a Constraint Satisfaction Problem (CSP), an artificial intelligence (AI) framework in which variables are assigned values that satisfy a set of constraints. The primary research question examines whether the CSP approach can automate access authorization in accordance with Zero Trust principles, thereby addressing the limitations of traditional Role-Based Access Control (RBAC) in large-scale systems. In this model, each (department, server) combination is treated as a CSP variable. Business requirements define lower-bound authorization constraints, while security policies establish upper bounds. These constraints are structured in three hierarchical layers: role-based restrictions, Separation of Duties (SoD) rules, and resource isolation consistent with Zero Trust. The CSP is solved using a backtracking search algorithm enhanced with the Minimum Remaining Values (MRV) heuristic, an AI technique that improves constraint-solving efficiency. The proposed method is evaluated in a simulated enterprise environment comprising 7 departments and 8 servers, resulting in 56 variables. The MRV-augmented algorithm identifies a valid solution that satisfies all constraints in 91 attempts, despite the extensive theoretical search space. This approach is compared with classical backtracking to demonstrate reduced unnecessary computation and earlier conflict detection. The findings suggest that the CSP-based, AI-driven model provides a more controlled and scalable mechanism for generating access policies while maintaining the Least Privilege principle. However, these conclusions are based on a simulated context, and further research is required to assess the approach in real-world scenarios.
+	\end{abstract}
+	
+	\begin{IEEEkeywords}
+		artificial intelligence, Constraint Satisfaction Problem, Zero Trust, Access Control, Least Privilege, MRV Heuristic, RBAC
+	\end{IEEEkeywords}
+	
+	\section{Introduction}
+	\label{sec:introduction}
+	
+	As enterprise information systems grow, it becomes harder for administrators to manage access control by relying on intuition. With many users, servers, and frequent changes in job roles, overauthorization errors are common. These mistakes give users more access than they need, increasing the risk of insider threats and lateral movement attacks. The Verizon 2024 Data Breach Research Report notes that credential misuse is still the most frequent way breaches begin [1].
+Zero Trust Architecture addresses these challenges by adhering to the principle of not implicitly trusting any user or entity and continuously verifying every access request [2]. The CISA Zero Trust Maturity Model v2.0 mandates that access control implementations be as detailed and automated as possible to fulfill this principle [3]. Traditional role hierarchies such as RBAC, which are static access control models, require significant administrative oversight and manual analysis, lacking systematic mechanisms for detecting policy conflicts and SoD violations. Consequently, the risk of over-authorization increases with system scale [4]. In response, the access control problem is reformulated using the Constraint Satisfaction Problem (CSP) framework, originating from artificial intelligence and mathematical optimization. This approach is analogous to solving a Sudoku puzzle, where each cell is assigned a value only if it satisfies all constraints. In the CSP-based access control model, each user receives the minimum level of authority necessary to meet both business requirements and security policies, with no additional permissions granted if constraints are violated. Utilizing backtracking searches and the Minimum Remaining Values (MRV) heuristic, this method automatically detects policy conflicts, enforces the Least Privilege principle within defined constraints, and reduces dependence on manual configuration.
+
+
+	
+	\section{Related Work}
+	\label{sec:related_work}
+	
+	Existing literature demonstrates the application of the CSP framework to various security policy domains [5, 6, 7]. For example, Li et al. [5] examine role-based access control models for inter-system cross-domain environments, focusing on policy negotiation and reconciliation across organizational boundaries. Caserio et al. [6] address formal validation methods for XACML access control policies, primarily ensuring policy consistency and correctness rather than automated authorization. Yang [7] investigates the enforcement of separation of duty constraints within attribute-based access control, emphasizing abstract security optimization through constraint modeling. While these studies contribute to policy negotiation, validation, and theoretical optimization, they rarely address the operational challenges of automated least privilege assignment in complex enterprise environments. The proposed model distinguishes itself by operationalizing automated least privilege assignment, generating concrete access control matrices through a backtracking algorithm augmented with the MRV heuristic, and applying this directly to real-world combinations of departments and servers under explicit business and security constraints. This approach not only verifies policy consistency but also automates the generation and assignment of access levels in accordance with Zero Trust principles, thereby addressing practical scalability and conflict detection challenges in large-scale enterprise systems.
+	
+	\section{Problem Formulation}
+	\label{sec:problem}
+	
+	\subsection{Constraint Satisfaction Problem}
+	The Constraint Satisfaction Problem (CSP) is a mathematical framework that requires assigning values to each of a set of variables in such a way that they simultaneously satisfy certain constraints [8]. Formally, a CSP is defined by three components:
+    CSP = (X, D, C)
+
+	\begin{itemize}
+		\item \textbf{${X}$} $ = \{x_1, x_2, \ldots, x_n\}$ \quad set of variables to be assigned values
+		\item \textbf{D = \{d$_1$, d$_2$, ..., d$_n$\} } domain of possible values that each variable can take
+		\item \textbf{C = \{c$_1$, c$_2$, ..., c$_m$\} } validity conditions between variables
+		This solution is a full value assignment that satisfies all constraints simultaneously. The main strength of CSP solvers is the continuous pruning of partial assignments during the search. In this way, the search space is dramatically reduced compared to brute force search [9].
+	\end{itemize}
+	
+	\subsection{Modeling Access Control as a CSP}
+	The enterprise access control problem is mapped to the CSP components as follows.
+ 
+\textbf{Variables ($X$):} Each department–server pair creates a CSP variable. In
+this study, a system consisting of 7 departments and 8 servers is defined, yielding
+a total of 56 variables:
+ 
+\begin{equation}
+  X= \{(d_i, s_j) \mid d_i \in \text{Dept},\; s_j \in \text{Server}\},\quad |X|=56
+\end{equation}
+ 
+\textbf{Domain ($D$):} Each variable can take one of four permission levels, ordered
+from most restricted to most extensive in accordance with the Least Privilege
+principle:
+ 
+\begin{equation}
+  D_i = \{\text{No-Access} < \text{Read} < \text{Write} < \text{Execute}\}
+\end{equation}
+ 
+\textbf{Constraints ($C$):} Rules derived from the organization's security policies
+consist of two components.
+ 
+\textit{Job Requirements (lower-bound constraints):} Defines the minimum access level
+required for each department to perform its duties. This study defines 21 minimum
+access rules. Example: the Software department must have at least Execute permission
+on the Code Server, and the Finance department must have at least Write permission on
+the Payment Server.
+ 
+\textit{Security Policies (upper bounds and dual constraints):} The 13 constraint
+rules ($K1$–$K13$) are modeled in three categories:
+ 
+\begin{itemize}
+  \item \textbf{Role-Based Restrictions (K1–K6):} Maximum permission limit per
+        department. Example: the Management department cannot access the Code Server ($K6$).
+  \item \textbf{Separation of Duties — SoD (K7–K9):} Prohibits combinations of
+        authority that could create a conflict of interest. Example: the entity that
+        writes (Write) cannot also execute ($K8$).
+  \item \textbf{Zero Trust and Critical Resource Restrictions (K10–K13):}
+        Isolation of critical servers. Rule $K13$ protects critical systems by
+        allowing a maximum of one Execute permission per server.
+\end{itemize}
+ 
+By modeling all three categories together, the system can automatically prevent
+complex violations that single-policy controls might miss, including dual SoD
+violations such as holding both Payroll-Write and Customer-Write permissions
+simultaneously (as described in $K9$).
+ \subsection{ Why CSP? — Comparing Approaches}
+ A comparison was made to distinguish the capabilities of the proposed constraint-based approach with traditional access control models found in the literature. This comparison included key criteria such as rule conflict detection, dynamic generation of security policies, and system scalability. The comparison results, summarizing the limitations of existing approaches and the operational advantages provided by the CSP-based model, are presented in Table 1.
+ 
+\begin{table}[htbp]
+    \caption{Comparison of Access Control Approaches}
+    \begin{center}
+    
+        \begin{tabular}{|p{2.8cm}|p{2cm}|p{1.5cm}|p{1.7cm}|}
+            \hline
+            \textbf{Feature} & \textbf{Manual RBAC} & \textbf{ABAC} & \textbf{CSP Based (This Study)} \\
+            \hline
+            Detection of rule conflict & \texttimes{} Human control & Partial & \checkmark{} Automatic \\
+            \hline
+            SoD violation control & \texttimes & Partial & \checkmark{} Constraint-modeled \\
+            \hline
+            Least Privilege Guarantee & \texttimes & \texttimes & \checkmark{} Algorithmic \\
+            \hline
+            Policy making & Manual & Manual & \checkmark{} Automatic \\
+            \hline
+            Scalability & Low & Good & Good \\
+            \hline
+            Auditability & Weak & Medium & \checkmark{} Fully traceable \\
+            \hline
+        \end{tabular}
+        \label{tab:access_comparison}
+    \end{center}
+\end{table}
+Role naming conflicts, platform-domain management conflicts, and inter-regional sharing difficulties in multi-domain RBAC applications have been among the fundamental problems that have existed in the literature for many years [5]. While XACML-based access control approaches offer formal verification possibilities, these methods are inherently limited to checking the consistency of existing policies and are insufficient for automating policy production [6]. This situation is further highlighted by the increasing dynamism of user structures in modern institutional systems, the rise in multi-domain policy interactions, and the increasing complexity of separation of duties (SoD) constraints; it shows that current approaches have significant limitations in terms of both scalability and applicability [12]. Indeed, a large part of current studies focus on policy validation and violation detection problems, but these approaches are limited to controlling only defined rules instead of addressing the access control problem holistically [13].
+Constraint-based methods can fill this major gap in the literature by defining the problem of controlling access directly as a research and optimization problem. In particular, recent studies on the mathematical modeling and solution of highly dependent and complex security rules such as SoD clearly show that such problems can only be effectively addressed with constraint solving and optimization techniques [7]. In this context, the CSP model offers an integrated approach that can solve not only the verification problem but also the automatic policy generation problem by combining business requirements as lower bounds and security policies as upper bounds under a single formal structure.
+In this respect, the proposed model transcends the "policy verification" paradigm prevalent in the literature, directly focusing on the "constraint-driven policy generation" problem and filling a critical methodological gap in the field of access control. Furthermore, the CSP approach not only generates valid solutions but also has the ability to systematically scan the solution space and identify the optimal solution that provides the lowest level of authorization. This feature directly aligns with the principles of continuous verification and minimum authorization, which form the basis of the Zero Trust architecture, making the proposed approach a robust and applicable solution not only theoretically but also practically.
+
+	\section{Methodology and Modeling}
+	\label{sec:methodology}
+	
+	\subsection{CSP Formulation of Access Control}
+   In this study, an enterprise network scenario consisting of 7 departments (R\&D, Finance, Legal, HR, Sales, Software, Management) and 8 servers (Research, Payroll, Legal, Code, Customer, Payment, Project, Management Server) is modeled. A summary of the system parameters used in the modeling is given in Figure 1. Since each pair (department, server) constitutes a CSP variable, the total number of variables is 56. The theoretical brute-force search space is $4^{56}$ $\approx$ 5.19 × 10³³ probability. This value corresponds to an uncomputable search space. 21 business requirement constraints directly determine the minimum value of most of the variables, while security policies prune the remaining space. It is well known in the artificial intelligence literature that constraint propagation dramatically narrows the search space [11].
+
+\begin{figure} [H]
+    \centering
+    \includegraphics[width=1\linewidth]{aı.jpg}
+    \caption{System parameters}
+    \label{fig:placeholder}
+\end{figure}
+    The tangible effect of this pruning was measured by comparing the two algorithms; the results are presented in Table 2. The source of the difference is explained in detail in section 3.4.
+    
+	\subsection{Multi-Layer Constraint Modeling}
+	A key engineering choice is to design the constraint function to work with partial assignments. At each step, only the variables assigned so far are checked, while unassigned ones are ignored. This uses the fail-first principle, cutting off invalid branches as early as possible [9].
+Constraint rules are processed in three priority layers K1–K13:
+\begin{itemize}
+\item \textbf{Layer 1 — Business requirements:}  21 minimum authorization rules. If an assigned variable falls below the minimum level, the branch is immediately pruned.
+
+\item \textbf{Layer 2 — Role and area restrictions (K1–K6):} Department-based access restrictions and maximum permission limits. For example, according to K5, the Legal department can only access the Legal and Client servers; No-Access is mandatory on all other servers.
+
+\item \textbf{Layer 3 — SoD, Zero Trust, and structural constraints (K7–K13):}
+ Binary and multivariate relationships. The critical constraint K13 specifies that at most one department on each server can have Execute privileges. This constraint is the fundamental mechanism that highlights the effect of the MRV heuristic by creating a direct competition relationship between variables.
+\end{itemize}
+    {\subsection{Search Strategy and Value Ordering}}
+    The fundamental mechanism used to solve the problem is the Backtracking Search algorithm, commonly preferred in solving constraint satisfaction problems (CSPs). This method is a depth-first search strategy that proceeds by assigning a suitable value (access permission) to a variable (department-server pair) at each step. If any constraint violation is detected during the assignment, the algorithm undoes the last operation and tries alternative branches.
+The pseudocode summarizing the working logic of the proposed model is presented in Algorithm 1. Based on this basic structure, the effect of value sorting strategies on solution speed has been examined through two different approaches:
+\begin{itemize}
+\item \textbf{Straight Backtracking:} Directly tries values according to a specific hierarchy (greedy order).
+\item \textbf{MRV-Powered Approach: }  Manages the search space efficiently by prioritizing variables and values more strategically.
+\end{itemize} 
+
+\begin{algorithm}
+\centering
+\includegraphics[width=0.7\linewidth]{Resim1.jpg}
+\caption{Backtracking-CSP: Partial Assignment-Based Backtracking}
+\label{fig:placeholder2}
+\end{algorithm}
+
+The value ranking differs in the two algorithms, and this difference is directly reflected in the results:
+\begin{itemize}
+    \item Straight Backtracking: The greedy order is: Execute → Write → Read → No-Access. Each variable is first attempted with the highest privilege; this, combined with competitive constraints like K13, creates deadlocks.
+    \item MRV Backtracking: The Least Privilege sequence is: No-Access → Read → Write → Execute. The lowest privilege is attempted first; the solution only advances to a higher level if the lowest privilege fails to meet the constraints. In this way, the algorithm directly applies the Least Privilege principle.
+\end{itemize}
+\subsection{Heuristic Optimization via MRV and Its Impact on Search Performance}
+    Although classical backtracking algorithms typically select variables in a fixed order, this study utilizes the Minimum Remaining Values (MRV) heuristic to improve performance. MRV is based on the "fail-first" principle in the search process. This strategy prioritizes variables with the lowest probability of being solved, allowing for the detection of potential constraint violations much earlier, without delving deep into the search tree.
+    The operation of the MRV mechanism in the variable selection process is given in Algorithm 2. This approach significantly reduces the total number of trials by efficiently reducing the search space, especially in complex network scenarios with numerous constraints.
+    \begin{algorithm}
+        \centering
+        \includegraphics[width=0.9\linewidth]{Resim2.png}
+        \caption{MRV-SELECT: Minimum Remaining Values Variable Selection}
+        \label{fig:placeholder}
+    \end{algorithm}
+	    The working principle of the MRV strategy is to prevent the lock-in effect by identifying potential failures at the upper levels of the search tree [9].
+        In this study, the critical mechanism determining the effectiveness of MRV is the K13 constraint. The fact that only one department can have Execute permission on each server effectively reduces the domain of some (department, server) pairs to a single value. For example, the Execute requirement on the Software department's Code Server leaves no other valid value for this variable. MRV detects this variable early and resolves it first; then other departments do not try to obtain Execute on the same server, and a K13 conflict is avoided. In simple backtracking, since variables are processed alphabetically, the R\&D department precedes the Software department and attempts to execute them first on the Code Server. This creates an unsolvable situation for the Software department in later steps and initiates a deadlock requiring thousands of backtracks.
+            \begin{figure}[H]
+                \centering
+                \includegraphics[width=1.0\linewidth]{Resim3.png}
+                \caption{Comparison of Straightbacktracking and MRVbacktracking algorithms}
+                \label{fig:placeholder}
+            \end{figure}
+	
+	\section{FINDINGS AND EVALUATION}
+	\label{sec:results}
+	
+	\subsection{Access Control Matrix}
+	The backtracking algorithm, enhanced with the MRV heuristic, reached a solution that simultaneously satisfied 21 business requirements and 13 security constraints in 91 attempts. The generated access control matrix is presented in Figure 2. The resulting matrix simultaneously meets both minimum business requirements and Zero Trust security policies.
+    \begin{figure} [H]
+        \centering
+        \includegraphics[width=1\linewidth]{Resim4.png}
+        \caption{Output of Access Control Matrix}
+        \label{fig:placeholder}
+    \end{figure}
+     Figure 3 shows that departments are only granted the minimum permissions necessary to perform their duties. Thus, the Least Privilege principle has been systematically applied. Unnecessary increases in privileges are not permitted, and all access is structured within defined limits.
+    Execute permissions are assigned only to servers requiring critical operations. Specifically, the R\&D department has Execute permission on the Research Server, the Legal department on the Legal Server, the Software department on the Code and Project Servers, and the Administration department on the Administration Server. To illustrate the general structure of the algorithm outputs, detailed permission assignments for the R\&D and Finance departments are presented as a snapshot in Table 2. This distribution demonstrates a balanced structure between business continuity and security requirements.
+
+
+\begin{table}[htbp]
+\caption{Excerpt from the Detailed Authorization Report (R\&D and Finance Departments)}
+\centering
+\small
+\begin{tabular}{|p{1.3cm}|p{2.5cm}|p{1.7cm}|p{2cm}|}
+\hline
+\textbf{Department} & \textbf{Server} & \textbf{Authority Level} & \textbf{Statement} \\
+\hline
+R\&D & Research Server & Execute & Business requirement \\
+\hline
+R\&D & Code Server & Read & Business requirement \\
+\hline
+R\&D & Project Server & Write & Business requirement \\
+\hline
+R\&D & Payroll Server & No-Access & Role constraint \\
+\hline
+R\&D & Payment Server & No-Access & Role constraint \\
+\hline
+Finance & Payroll Server & Read & Business requirement \\
+\hline
+Finance & Customer Server & Read & Business requirement \\
+\hline
+Finance & Payment Server & Write & Business requirement \\
+\hline
+Finance & Project Server & Read & Business requirement \\
+\hline
+Finance & Code Server & No-Access & Role constraint \\
+\hline
+\end{tabular}
+\label{tab:access_policies}
+\end{table}Table 2 shows that the R\&D department is only granted permissions necessary for research and development activities. The finance department, on the other hand, has limited access to systems related to payment and record-keeping processes. The assignment of No-Access to all resources that do not require authorization demonstrates that the system successfully implements the Least Privilege principle. Furthermore, due to K13 restrictions, each server can have a maximum of one Execute privilege. This prevents multiple highly privileged users from being on the same critical resource, reducing the risk of internal threats and misuse.
+The distribution of authorization levels in the generated access matrix is presented comparatively in Figure 4. The Straight Backtracking algorithm, prioritizing Execute in the value ordering, tends to assign high authorization in all cells permitted by the constraints. Therefore, three additional pairs (department, server) that do not have a business requirement in the solution were given Execute authorization, and the Execute rate reached 14.3\%. In contrast, the MRV Backtracking algorithm, thanks to its Least Privilege value ordering, assigns only the minimum authorization level required by the constraints to each variable; Execute is only given to five pairs (8.9\%) explicitly required by IS\_GER, while the vast majority of the remaining assignments are No-Access (62.5\%). This finding concretely demonstrates that the MRV heuristic provides algorithmic assurance of Least Privilege, beyond its performance advantage.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Resim5.png}
+    \caption{Distribution of privilege levels: Comparison of Straight Backtracking (Greedy) and MRV Backtracking (Least Privilege).}
+    \label{fig:placeholder}
+\end{figure}
+The resulting access matrix eliminates the overauthorization problem frequently encountered in manually managed, classic RBAC structures and provides a controllable and consistent authorization structure.
+	
+	\section{Discussion}
+	\label{sec:discussion}
+	In this study, various misaccess scenarios were simulated to demonstrate that the proposed CSP model can not only generate an appropriate access matrix but also detect erroneous authorizations. These scenarios were designed to represent common human errors in manual access management.
+The simulation tested situations such as off-role access definitions, separation of duties violations, unauthorized access requests to critical servers, and granting multiple Execute permissions on the same server. All erroneous assignments applied to the system were automatically rejected by the constraint function. For example, granting Execute permission to the Finance department on the Payment Server violates rule K7, and granting write permission to the HR department on both the Payroll and Customer systems simultaneously violates rule K9. Similarly, access requests to the Administration Server from departments other than Administration were rejected due to constraint K10. In addition, attempts to assign Execute permission to multiple departments on the same server were automatically blocked under rule K13. This provides a significant security advantage in terms of protecting critical system resources. The results show that the CSP-based approach is not only a passive model that distributes permissions, but also an active security mechanism that detects misconfigurations in real time. This feature provides a significant advantage in preventing configuration errors that are common in manually managed systems.
+
+	\section{Conclusion and Future Work}
+	\label{sec:conclusion}
+	
+	In this study, the enterprise access control problem was reformulated using the Constraint Satisfaction Problem (CSP) approach, and a model for generating automatic authorization under Zero Trust principles was developed. By representing access decisions as constraints, the system was able to produce a valid authorization matrix that satisfies both business requirements and security policies.
+The experimental results show that the backtracking algorithm enhanced with the MRV heuristic can reach a solution efficiently, even in a problem space that is theoretically very large. Compared to classical backtracking, the MRV-based approach reduces unnecessary search effort and tends to produce solutions that align more closely with the Least Privilege principle.
+Another important observation is that the system not only generates valid access assignments but can also detect invalid or conflicting configurations during the process. This suggests that the model can act not only as a policy generation tool but also as a mechanism for identifying potential security issues.
+Despite these positive results, the study has some limitations. The evaluation is based on a simulated environment, and real-world systems may involve additional complexity such as dynamic user behavior and continuously changing policies. In addition, the scalability of the approach may be affected as the number of variables and constraints increases.
+In future work, it would be useful to test the model on larger and more dynamic systems, and to explore integration with attribute-based access control (ABAC) and real-time risk assessment mechanisms. Overall, the proposed approach appears to offer a promising alternative to traditional access control methods, particularly in environments where automation and consistency are important.
+
+	
+	\begin{thebibliography}{00}
+
+        \bibitem{b1} C. D. Hylender, P. Langlois, A. Pinto, and S. Widup, "Data breach investigations report," Verizon Business, May 1, 2024.
+
+        \bibitem{b2} S. Rose, O. Borchert, S. Mitchell, and S. Connelly, "Zero trust architecture," NIST Special Publication, 800(207), pp. 1-52, 2020.
+
+        \bibitem{b3} CISA, "Zero Trust Maturity Model, Version 2.0," Cybersecurity and Infrastructure Security Agency, 2023. [Online]. Available: https://www.cisa.gov/zero-trust-maturity-model
+
+        \bibitem{b4} A. Ferreira, R. Cruz-Correia, L. Antunes, and D. Chadwick, "Implications of loosened Role-based Access Control session control implementation for the enforcement of Dynamic Mutually Exclusive Roles properties on Health Information Systems," \textit{Journal of Systems Architecture}, vol. 121, 2021. doi: 10.1016/j.sysarc.2021.102135.
+
+        \bibitem{b5} Y. Li, Z. Du, Y. Fu, and L. Liu, "Role-Based Access Control Model for Inter-System Cross-Domain in Multi-Domain Environment," \textit{Applied Sciences}, vol. 12, no. 24, p. 13036, 2022. doi: 10.3390/app122413036.
+
+        \bibitem{b6} C. Caserio, F. Lonetti, and E. Marchetti, "A Formal Validation Approach for XACML 3.0 Access Control Policy," \textit{Sensors}, vol. 22, no. 8, p. 2984, 2022. doi: 10.3390/s22082984.
+
+        \bibitem{b7} B. Yang, "Enforcement of separation of duty constraints in attribute-based access control," \textit{Computers \& Security}, vol. 131, p. 103294, 2023.
+
+        \bibitem{b8} S. C. Brailsford, C. N. Potts, and B. M. Smith, "Constraint satisfaction problems: Algorithms and applications," \textit{European Journal of Operational Research}, vol. 119, no. 3, pp. 557-581, 1999.
+
+        \bibitem{b9} S. Russell and P. Norvig, \textit{Artificial Intelligence: A Modern Approach}, 4th Global ed. Pearson, 2022.
+
+        \bibitem{b10} D. F. Ferraiolo, R. Sandhu, S. Gavrila, D. R. Kuhn, and R. Chandramouli, "Proposed NIST standard for role-based access control," \textit{ACM Trans. Inf. Syst. Secur.}, vol. 4, no. 3, pp. 224–274, Aug. 2021. doi: 10.1145/501978.501980.
+
+        \bibitem{b11} H. Li, M. Yin, and Z. Li, "Failure Based Variable Ordering Heuristics for Solving CSPs," in \textit{27th International Conference on Principles and Practice of Constraint Programming (CP 2021)}, LIPIcs, vol. 210, pp. 9:1–9:10, 2021. doi: 10.4230/LIPIcs.CP.2021.9.
+
+        \bibitem{b12} K. Ragothaman, Y. Wang, B. Rimal, and M. Lawrence, "Access control for IoT: A survey of existing research, dynamic policies and future directions," \textit{Sensors}, vol. 23, no. 4, p. 1805, 2023.
+
+        \bibitem{b13} A. Gouglidis, A. Kagia, and V. C. Hu, "Model checking access control policies: A case study using google cloud iam," \textit{arXiv preprint arXiv:2303.16688}, 2023.
+
+\end{thebibliography}
+	
+	\appendix
+	\section{Code Repository}
+	\label{app:code}
+	
+	Source code available at: \url{https://github.com/NefiseBuse/Automated-Authorization-and-Access-Optimization-in-Zero-Trust-Environments-Using-the-CSP-Approach-}
+	
+	% Include key code snippets if desired
+	
+\end{document}
